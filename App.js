@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -6,10 +7,17 @@ import Animated, {
   useAnimatedRef,
   scrollTo,
 } from "react-native-reanimated";
-import { View, Text, SafeAreaView, TouchableOpacity } from "react-native";
-import React, { useState } from "react";
+import {
+  View,
+  Text,
+  SafeAreaView,
+  TouchableOpacity,
+  StatusBar as RNStatusBar,
+} from "react-native";
+import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 
 import { categories } from "./config";
+import { clamp } from "react-native-redash";
 
 export default function AnimatedStyleUpdateExample(props) {
   const tabScrollViewRef = useAnimatedRef();
@@ -25,8 +33,9 @@ export default function AnimatedStyleUpdateExample(props) {
 
   const fixedStyle = useAnimatedStyle(() => {
     if (y.value > headerHeight.value) {
+      const TOP_POSITION = y.value - headerHeight.value;
       return {
-        top: y.value - headerHeight.value,
+        top: clamp(TOP_POSITION, TOP_POSITION - 1, TOP_POSITION + 1),
       };
     }
     return {
@@ -46,7 +55,12 @@ export default function AnimatedStyleUpdateExample(props) {
   }, [activeCategoryIndex]);
 
   return (
-    <SafeAreaView>
+    <SafeAreaView
+      style={{
+        paddingTop: RNStatusBar.currentHeight,
+      }}
+    >
+      <ExpoStatusBar style="dark" />
       <Animated.ScrollView
         ref={screenScrollViewRef}
         onScroll={onScroll}

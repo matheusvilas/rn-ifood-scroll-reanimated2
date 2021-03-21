@@ -6,6 +6,7 @@ import Animated, {
   useDerivedValue,
   useAnimatedRef,
   scrollTo,
+  measure,
 } from "react-native-reanimated";
 import {
   View,
@@ -35,7 +36,7 @@ export default function AnimatedStyleUpdateExample(props) {
     if (y.value > headerHeight.value) {
       const TOP_POSITION = y.value - headerHeight.value;
       return {
-        top: clamp(TOP_POSITION, TOP_POSITION - 1, TOP_POSITION + 1),
+        top: TOP_POSITION,
       };
     }
     return {
@@ -45,6 +46,7 @@ export default function AnimatedStyleUpdateExample(props) {
 
   function setCurrentCategoryActive(index) {
     "worklet";
+
     activeCategoryIndex.value = index;
   }
 
@@ -85,36 +87,40 @@ export default function AnimatedStyleUpdateExample(props) {
               horizontal
               style={{}}
             >
-              {categories.map((category) => (
-                <View
-                  style={{
-                    width: 130,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderColor: "white",
-                    borderWidth: 2,
-                  }}
-                  key={category.id}
-                >
-                  <Text>{category.name}</Text>
-                </View>
-              ))}
+              {categories.map((category) => {
+                return (
+                  <View
+                    style={{
+                      width: 130,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderColor: "white",
+                      borderWidth: 2,
+                    }}
+                    key={category.id}
+                  >
+                    <Text>{category.name}</Text>
+                  </View>
+                );
+              })}
             </Animated.ScrollView>
           </Animated.View>
 
-          {categories.map((category, index) => (
-            <CategoryItem
-              key={category.id}
-              {...{
-                category,
-                y,
-                index,
-                activeCategoryIndex,
-                setCurrentCategoryActive,
-                screenScrollViewRef,
-              }}
-            />
-          ))}
+          {categories.map((category, index) => {
+            return (
+              <CategoryItem
+                key={category.id}
+                {...{
+                  category,
+                  y,
+                  index,
+                  activeCategoryIndex,
+                  screenScrollViewRef,
+                  setCurrentCategoryActive,
+                }}
+              />
+            );
+          })}
         </View>
       </Animated.ScrollView>
     </SafeAreaView>
@@ -124,50 +130,53 @@ export default function AnimatedStyleUpdateExample(props) {
 function CategoryItem({
   id,
   y,
-  category,
   setCurrentCategoryActive,
   activeCategoryIndex,
   index,
-  screenScrollViewRef,
+  category,
 }) {
-  const [anchorPosition, setAnchorPosition] = useState(0);
-  const [listHeight, setListHeight] = useState(0);
+  const categoryItemRef = useAnimatedRef();
 
   useDerivedValue(() => {
-    if (y.value > anchorPosition && y.value <= anchorPosition + listHeight) {
-      if (activeCategoryIndex.value !== index) setCurrentCategoryActive(index);
-    }
+    try {
+      const anchorPosition = measure(categoryItemRef);
+
+      if (
+        y.value > anchorPosition.pageY &&
+        y.value <= anchorPosition.pageY + anchorPosition.height &&
+        activeCategoryIndex.value !== index
+      ) {
+        setCurrentCategoryActive(index);
+      }
+    } catch (error) {}
   }, [y]);
 
-  function handleScroll() {
-    scrollTo(screenScrollViewRef, 0, screenScrollViewRef, true);
-  }
-
   return (
-    <View
-      onLayout={({
-        nativeEvent: {
-          layout: { y: anchor, height },
-        },
-      }) => {
-        setAnchorPosition(anchor);
-        setListHeight(height);
-      }}
+    <Animated.View
+      ref={categoryItemRef}
       key={id}
       style={{
         backgroundColor: "brown",
-        height: 1000,
         borderBottomColor: "red",
         borderBottomWidth: 2,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <TouchableOpacity onPress={handleScroll}>
-        <Animated.Text style={{ fontSize: 40, color: "white" }}>
-          {anchorPosition} ~ {listHeight}
-        </Animated.Text>
-      </TouchableOpacity>
-    </View>
+      {category.products.map(({ id, name }) => (
+        <TouchableOpacity
+          style={{
+            padding: 40,
+            borderBottomColor: "white",
+            borderBottomWidth: 3,
+          }}
+          key={id}
+        >
+          <Text style={{ fontSize: 40, color: "white" }}>
+            {name} - {index}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </Animated.View>
   );
 }

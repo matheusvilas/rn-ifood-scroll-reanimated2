@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { createRef, useEffect, useRef, useState } from "react";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,6 +7,8 @@ import Animated, {
   useAnimatedRef,
   scrollTo,
   measure,
+  runOnJS,
+  runOnUI,
 } from "react-native-reanimated";
 import {
   View,
@@ -14,16 +16,17 @@ import {
   SafeAreaView,
   TouchableOpacity,
   StatusBar as RNStatusBar,
+  Button,
 } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 
 import { categories } from "./config";
-import { clamp } from "react-native-redash";
 
 export default function AnimatedStyleUpdateExample(props) {
   const tabScrollViewRef = useAnimatedRef();
   const screenScrollViewRef = useAnimatedRef();
   const activeCategoryIndex = useSharedValue(0);
+  const activeCategoryWidth = useSharedValue([]);
   const headerHeight = useSharedValue(400);
   const y = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler({
@@ -44,17 +47,32 @@ export default function AnimatedStyleUpdateExample(props) {
     };
   });
 
-  function setCurrentCategoryActive(index) {
+  const setCurrentCategoryActive = (index) => {
     "worklet";
 
     activeCategoryIndex.value = index;
-  }
+  };
+
+  const setCurrentWidthCategory = (width) => {
+    "worklet";
+
+    activeCategoryWidth.value.push(width);
+  };
 
   useDerivedValue(() => {
-    const scrollPosition = activeCategoryIndex.value * 130;
+    const activeIndex = activeCategoryIndex.value;
+    const categoriesWidths = activeCategoryWidth.value;
+    let scrollWidth = 0;
+
+    if (activeIndex > 0)
+      scrollWidth = categoriesWidths
+        .filter((item) => item.index < activeIndex)
+        .reduce((acc, cara) => (acc = acc + cara.width), 0);
+
+    const scrollPosition = scrollWidth;
 
     scrollTo(tabScrollViewRef, scrollPosition, 0, true);
-  }, [activeCategoryIndex]);
+  }, [activeCategoryIndex, activeCategoryWidth]);
 
   return (
     <SafeAreaView
@@ -85,22 +103,18 @@ export default function AnimatedStyleUpdateExample(props) {
               ref={tabScrollViewRef}
               showsHorizontalScrollIndicator={false}
               horizontal
-              style={{}}
             >
-              {categories.map((category) => {
+              {categories.map((category, index) => {
                 return (
-                  <View
-                    style={{
-                      width: 130,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderColor: "white",
-                      borderWidth: 2,
-                    }}
+                  <CategoryTab
                     key={category.id}
-                  >
-                    <Text>{category.name}</Text>
-                  </View>
+                    {...{
+                      category,
+                      index,
+                      y,
+                      setCurrentWidthCategory,
+                    }}
+                  />
                 );
               })}
             </Animated.ScrollView>
@@ -127,6 +141,33 @@ export default function AnimatedStyleUpdateExample(props) {
   );
 }
 
+function CategoryTab({ category, setCurrentWidthCategory, index, y }) {
+  const categoryItemRef = useAnimatedRef();
+
+  useDerivedValue(() => {
+    try {
+      const itemMeasurement = measure(categoryItemRef);
+      setCurrentWidthCategory({ width: itemMeasurement.width, index });
+    } catch (error) {}
+  }, [y]);
+
+  return (
+    <Animated.View
+      ref={categoryItemRef}
+      style={{
+        paddingHorizontal: 20,
+        alignItems: "center",
+        justifyContent: "center",
+        borderColor: "white",
+        borderWidth: 2,
+      }}
+      key={category.id}
+    >
+      <Text>{category.name}</Text>
+    </Animated.View>
+  );
+}
+
 function CategoryItem({
   id,
   y,
@@ -139,11 +180,11 @@ function CategoryItem({
 
   useDerivedValue(() => {
     try {
-      const anchorPosition = measure(categoryItemRef);
+      const itemMeasurement = measure(categoryItemRef);
 
       if (
-        y.value > anchorPosition.pageY &&
-        y.value <= anchorPosition.pageY + anchorPosition.height &&
+        y.value > itemMeasurement.pageY &&
+        y.value <= itemMeasurement.pageY + itemMeasurement.height &&
         activeCategoryIndex.value !== index
       ) {
         setCurrentCategoryActive(index);
